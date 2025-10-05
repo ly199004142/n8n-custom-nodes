@@ -59,8 +59,8 @@ async function getVideoStreamInfo(filePath: string): Promise<VideoStreamInfo> {
 				hasVideo,
 				hasAudio,
 				duration: Math.max(
-					parseFloat(metadata.format.duration as string) || 0,
-					parseFloat(videoStream?.duration as string) || 0
+					typeof metadata.format.duration === 'number' ? metadata.format.duration : parseFloat(metadata.format.duration || '0'),
+					typeof videoStream?.duration === 'number' ? videoStream.duration : parseFloat(videoStream?.duration || '0')
 				),
 				videoStream: videoStream ? {
 					width: videoStream.width || 0,
@@ -71,7 +71,7 @@ async function getVideoStreamInfo(filePath: string): Promise<VideoStreamInfo> {
 				} : null,
 				audioStream: audioStream ? {
 					codec: audioStream.codec_name || '',
-					sampleRate: parseInt(audioStream.sample_rate as string) || 0,
+					sampleRate: typeof audioStream.sample_rate === 'number' ? audioStream.sample_rate : parseInt(audioStream.sample_rate || '0'),
 					channels: audioStream.channels || 0,
 				} : null,
 			});
