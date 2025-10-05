@@ -426,12 +426,12 @@ async function main() {
 		// 字幕文件路径（可选）
 		// 支持格式: .srt, .ass, .ssa, .vtt
 		// 注意: 启用字幕后，视频将重新编码，处理时间会显著增加（从几秒变为几分钟）
-		subtitlePath: null,  // 示例: '/Users/liuyang/Downloads/test_media/subtitle.srt'
+		subtitlePath: '/Users/liuyang/Downloads/test_media/test_subtitle.srt',  // 示例: '/Users/liuyang/Downloads/test_media/subtitle.srt'
 
 		// 是否静音原视频音频
 		// true: 只听到叠加的音频
 		// false: 原视频音频和叠加音频混合播放
-		muteOriginalAudio: true,
+		muteOriginalAudio: false,
 
 		// 输出文件路径
 		outputPath: '/Users/liuyang/Downloads/test_media/mtest.mp4',
