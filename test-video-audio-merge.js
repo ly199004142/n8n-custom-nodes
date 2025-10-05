@@ -1,5 +1,36 @@
 const ffmpeg = require('fluent-ffmpeg');
 const fs = require('fs');
+const path = require('path');
+
+/**
+ * 转义字幕文件路径，用于 FFmpeg subtitles 滤镜
+ * FFmpeg 滤镜路径需要特殊转义: \, :, ' 等字符
+ * @param {string} filePath - 字幕文件路径
+ * @returns {string} 转义后的路径
+ */
+function escapeSubtitlePath(filePath) {
+	return filePath
+		.replace(/\\/g, '\\\\\\\\')  // 反斜杠: \ -> \\\\
+		.replace(/:/g, '\\:')        // 冒号: : -> \:
+		.replace(/'/g, "\\'");       // 单引号: ' -> \'
+}
+
+/**
+ * 检测字幕文件格式
+ * @param {string} filePath - 字幕文件路径
+ * @returns {string} 字幕格式 (.srt, .ass, .ssa, .vtt)
+ * @throws {Error} 如果格式不支持
+ */
+function getSubtitleFormat(filePath) {
+	const ext = path.extname(filePath).toLowerCase();
+	const supportedFormats = ['.srt', '.ass', '.ssa', '.vtt'];
+
+	if (!supportedFormats.includes(ext)) {
+		throw new Error(`不支持的字幕格式: ${ext}，仅支持 ${supportedFormats.join(', ')}`);
+	}
+
+	return ext;
+}
 
 /**
  * 获取媒体文件的流信息(支持视频和音频)
@@ -50,10 +81,11 @@ async function getMediaStreamInfo(filePath, type = 'video') {
 }
 
 /**
- * 视频与音频合成
+ * 视频与音频合成（支持字幕烧录）
  * @param {Object} config - 配置对象
  * @param {string} config.videoPath - 视频文件路径
  * @param {Array<Object>} config.audioFiles - 音频文件数组,每个元素包含 {path, startTime}
+ * @param {string} [config.subtitlePath] - 字幕文件路径（可选）
  * @param {boolean} config.muteOriginalAudio - 是否静音原视频音频,默认 false
  * @param {string} config.outputPath - 输出文件路径
  * @returns {Promise<void>}
@@ -62,6 +94,7 @@ async function mergeVideoWithAudios(config) {
 	const {
 		videoPath,
 		audioFiles = [],
+		subtitlePath = null,
 		muteOriginalAudio = false,
 		outputPath,
 	} = config;
@@ -81,6 +114,17 @@ async function mergeVideoWithAudios(config) {
 			throw new Error(`音频文件不存在: ${audioFile.path}`);
 		}
 		console.log(`✓ 找到音频文件: ${audioFile.path}`);
+	}
+
+	// 验证字幕文件
+	let subtitleFormat = null;
+	if (subtitlePath) {
+		if (!fs.existsSync(subtitlePath)) {
+			throw new Error(`字幕文件不存在: ${subtitlePath}`);
+		}
+		subtitleFormat = getSubtitleFormat(subtitlePath);
+		console.log(`✓ 找到字幕文件: ${subtitlePath} (格式: ${subtitleFormat})`);
+		console.log(`  ⚠️  注意: 启用字幕烧录后，视频将重新编码，处理时间会显著增加`);
 	}
 
 	console.log('');
@@ -135,14 +179,28 @@ async function mergeVideoWithAudios(config) {
 
 	const command = ffmpeg();
 	const filterParts = [];
+	const audioFilterParts = []; // 音频滤镜部分
 	const audioInputLabels = []; // 存储所有需要混音的音频流标签
 
 	// 添加视频输入(索引 0)
 	command.input(videoPath);
 
-	// 视频流不做处理,直接传递(使用 null 滤镜或直接映射)
-	// 注意: 在 filter_complex 中不能使用 'copy',需要用 null 滤镜或者不处理视频流
-	// 这里我们不在 filterParts 中处理视频,而是直接映射原视频流
+	// ========== 3.1 构建视频滤镜（字幕烧录） ==========
+	let videoOutputLabel = '0:v'; // 默认直接使用原视频流
+
+	if (subtitlePath) {
+		// 有字幕: 使用 subtitles 滤镜烧录字幕
+		const escapedSubPath = escapeSubtitlePath(subtitlePath);
+		const videoFilter = `[0:v]subtitles='${escapedSubPath}'[outv]`;
+		filterParts.push(videoFilter);
+		videoOutputLabel = '[outv]';
+		console.log('✓ 已添加字幕烧录滤镜');
+	} else {
+		console.log('无字幕文件，视频流将直接复制（无重新编码）');
+	}
+	console.log('');
+
+	// ========== 3.2 构建音频滤镜 ==========
 
 	// 处理原视频音频
 	if (!muteOriginalAudio && videoInfo.hasAudio) {
@@ -150,10 +208,10 @@ async function mergeVideoWithAudios(config) {
 		const channels = videoInfo.audioStream.channels;
 		if (channels === 1) {
 			// 单声道转立体声
-			filterParts.push(`[0:a]aresample=${targetSampleRate},aformat=sample_rates=${targetSampleRate}:channel_layouts=mono,pan=stereo|c0=c0|c1=c0[orig_audio]`);
+			audioFilterParts.push(`[0:a]aresample=${targetSampleRate},aformat=sample_rates=${targetSampleRate}:channel_layouts=mono,pan=stereo|c0=c0|c1=c0[orig_audio]`);
 		} else {
 			// 双声道或多声道统一为立体声
-			filterParts.push(`[0:a]aresample=${targetSampleRate},aformat=sample_rates=${targetSampleRate}:channel_layouts=stereo[orig_audio]`);
+			audioFilterParts.push(`[0:a]aresample=${targetSampleRate},aformat=sample_rates=${targetSampleRate}:channel_layouts=stereo[orig_audio]`);
 		}
 		audioInputLabels.push('[orig_audio]');
 		console.log('保留原视频音频并加入混音');
@@ -229,19 +287,19 @@ async function mergeVideoWithAudios(config) {
 		}
 
 		audioFilter += `[a${i}]`;
-		filterParts.push(audioFilter);
+		audioFilterParts.push(audioFilter);
 		audioInputLabels.push(`[a${i}]`);
 	}
 
-	// ========== 4. 混音处理 ==========
+	// ========== 3.3 混音处理 ==========
 	if (audioInputLabels.length === 0) {
 		// 没有任何音频,生成静音
 		console.log('\n没有音频输入,生成静音轨道');
-		filterParts.push(`anullsrc=channel_layout=stereo:sample_rate=${targetSampleRate}:duration=${videoDuration}[outa]`);
+		audioFilterParts.push(`anullsrc=channel_layout=stereo:sample_rate=${targetSampleRate}:duration=${videoDuration}[outa]`);
 	} else if (audioInputLabels.length === 1) {
 		// 只有一个音频流,直接使用(使用 anull 滤镜作为空操作,或直接重命名标签)
 		console.log(`\n使用单个音频流: ${audioInputLabels[0]}`);
-		filterParts.push(`${audioInputLabels[0]}anull[outa]`);
+		audioFilterParts.push(`${audioInputLabels[0]}anull[outa]`);
 	} else {
 		// 多个音频流,使用 amix 混音
 		console.log(`\n混合 ${audioInputLabels.length} 个音频流`);
@@ -250,30 +308,58 @@ async function mergeVideoWithAudios(config) {
 		// - inputs: 输入流数量
 		// - duration: longest 表示以最长的流为准(已通过 apad 统一为视频时长)
 		// - dropout_transition: 当某个输入结束时的过渡时间(秒)
-		filterParts.push(`${mixInputs}amix=inputs=${audioInputLabels.length}:duration=longest:dropout_transition=0[outa]`);
+		audioFilterParts.push(`${mixInputs}amix=inputs=${audioInputLabels.length}:duration=longest:dropout_transition=0[outa]`);
 	}
+
+	// ========== 3.4 合并视频和音频滤镜 ==========
+	// 将音频滤镜添加到总滤镜链
+	filterParts.push(...audioFilterParts);
 
 	const filterComplex = filterParts.join(';');
 	console.log('\nFilter Complex:');
 	console.log(filterComplex);
 	console.log('');
 
-	// ========== 5. 执行 FFmpeg 命令 ==========
+	// ========== 4. 执行 FFmpeg 命令 ==========
 	console.log('步骤 4: 开始合成...\n');
 
 	return new Promise((resolve, reject) => {
+		// 构建输出选项
+		const outputOptions = [
+			'-map', videoOutputLabel,          // 映射视频流（可能是 0:v 或 [outv]）
+			'-map', '[outa]',                  // 映射处理后的音频流
+		];
+
+		// 根据是否有字幕决定视频编码方式
+		if (subtitlePath) {
+			// 有字幕: 必须重新编码视频
+			console.log('视频编码方式: libx264（重新编码，以烧录字幕）');
+			outputOptions.push(
+				'-c:v', 'libx264',             // H.264 视频编码
+				'-preset', 'medium',           // 编码速度（ultrafast/superfast/veryfast/faster/fast/medium/slow/slower/veryslow）
+				'-crf', '23',                  // 视频质量（18-28，越小质量越好，文件越大）
+				'-pix_fmt', 'yuv420p',         // 像素格式（兼容性最好）
+			);
+		} else {
+			// 无字幕: 直接复制视频流
+			console.log('视频编码方式: copy（直接复制，无重新编码）');
+			outputOptions.push('-c:v', 'copy');
+		}
+
+		// 音频编码参数
+		outputOptions.push(
+			'-c:a', 'aac',                     // 音频编码为 AAC
+			'-b:a', '192k',                    // AAC 音频码率
+			'-ar', String(targetSampleRate),   // 音频采样率
+			'-ac', '2',                        // 立体声
+			'-movflags', '+faststart',         // 优化网络播放
+		);
+
+		console.log('');
+
 		command
 			.complexFilter(filterComplex)
-			.outputOptions([
-				'-map', '0:v',                 // 直接映射原视频流
-				'-map', '[outa]',              // 映射处理后的音频流
-				'-c:v', 'copy',                // 视频流直接复制,不重新编码
-				'-c:a', 'aac',                 // 音频编码为 AAC
-				'-b:a', '192k',                // AAC 音频码率
-				'-ar', String(targetSampleRate), // 音频采样率
-				'-ac', '2',                    // 立体声
-				'-movflags', '+faststart',     // 优化网络播放
-			])
+			.outputOptions(outputOptions)
 			.output(outputPath)
 			.on('start', (commandLine) => {
 				console.log('========== FFmpeg 命令 ==========');
@@ -320,7 +406,7 @@ async function mergeVideoWithAudios(config) {
 
 // ========== 测试用例 ==========
 async function main() {
-	// 配置: 在这里设置你的视频、音频文件路径
+	// 配置: 在这里设置你的视频、音频、字幕文件路径
 	const config = {
 		// 视频文件路径
 		videoPath: '/Users/liuyang/Downloads/test_media/example_bgvideo.mp4',
@@ -329,13 +415,18 @@ async function main() {
 		audioFiles: [
 			{
 				path: '/Users/liuyang/Downloads/test_media/audio1.mp3',
-				startTime: 0, 
+				startTime: 0,  // 从视频开始处叠加
 			},
 			{
 				path: '/Users/liuyang/Downloads/test_media/audio2.mp3',
-				startTime: 68, 
+				startTime: 68,  // 从视频第 68 秒处开始叠加
 			},
 		],
+
+		// 字幕文件路径（可选）
+		// 支持格式: .srt, .ass, .ssa, .vtt
+		// 注意: 启用字幕后，视频将重新编码，处理时间会显著增加（从几秒变为几分钟）
+		subtitlePath: null,  // 示例: '/Users/liuyang/Downloads/test_media/subtitle.srt'
 
 		// 是否静音原视频音频
 		// true: 只听到叠加的音频
