@@ -159,9 +159,13 @@ async function mergeVideoWithAudios(config) {
 		console.log('保留原视频音频并加入混音');
 	} else if (muteOriginalAudio) {
 		console.log('已配置静音原视频音频');
+	} else if (!videoInfo.hasAudio) {
+		console.log('视频本身无音频流');
 	}
 
 	// 处理每个要叠加的音频文件
+	let actualInputIndex = 1; // 跟踪实际添加的输入索引(0是视频,从1开始是音频)
+
 	for (let i = 0; i < audioInfos.length; i++) {
 		const audioInfo = audioInfos[i];
 
@@ -170,12 +174,8 @@ async function mergeVideoWithAudios(config) {
 			continue;
 		}
 
-		const inputIndex = i + 1; // 输入索引(0 是视频,1+ 是音频)
 		const startTime = audioInfo.startTime;
 		const audioDuration = audioInfo.duration;
-
-		// 添加音频输入
-		command.input(audioInfo.filePath);
 
 		// 计算该音频的有效时长(不能超出视频)
 		const maxDuration = videoDuration - startTime;
@@ -185,6 +185,10 @@ async function mergeVideoWithAudios(config) {
 			console.log(`音频 ${i + 1}: 跳过(起始时间 ${startTime}s 超出视频时长 ${videoDuration.toFixed(2)}s)`);
 			continue;
 		}
+
+		// 添加音频输入
+		command.input(audioInfo.filePath);
+		const inputIndex = actualInputIndex++; // 使用实际的输入索引并递增
 
 		console.log(`音频 ${i + 1}: 起始=${startTime}s, 原时长=${audioDuration.toFixed(2)}s, 有效时长=${effectiveDuration.toFixed(2)}s`);
 
@@ -215,8 +219,14 @@ async function mergeVideoWithAudios(config) {
 			audioFilter += `adelay=${delayMs}|${delayMs}:all=1,`;
 		}
 
-		// 步骤 5: 再次设置时长为视频时长(填充静音)
-		audioFilter += `apad=whole_dur=${videoDuration}`;
+		// 步骤 5: 填充静音至视频时长(使用 pad_dur 参数更稳定)
+		const padDuration = videoDuration - effectiveDuration - startTime;
+		if (padDuration > 0) {
+			audioFilter += `apad=pad_dur=${padDuration.toFixed(3)}`;
+		} else {
+			// 不需要填充,去掉末尾逗号
+			audioFilter = audioFilter.slice(0, -1);
+		}
 
 		audioFilter += `[a${i}]`;
 		filterParts.push(audioFilter);
@@ -229,9 +239,9 @@ async function mergeVideoWithAudios(config) {
 		console.log('\n没有音频输入,生成静音轨道');
 		filterParts.push(`anullsrc=channel_layout=stereo:sample_rate=${targetSampleRate}:duration=${videoDuration}[outa]`);
 	} else if (audioInputLabels.length === 1) {
-		// 只有一个音频流,直接使用
+		// 只有一个音频流,直接使用(使用 anull 滤镜作为空操作,或直接重命名标签)
 		console.log(`\n使用单个音频流: ${audioInputLabels[0]}`);
-		filterParts.push(`${audioInputLabels[0]}acopy[outa]`);
+		filterParts.push(`${audioInputLabels[0]}anull[outa]`);
 	} else {
 		// 多个音频流,使用 amix 混音
 		console.log(`\n混合 ${audioInputLabels.length} 个音频流`);
@@ -251,57 +261,61 @@ async function mergeVideoWithAudios(config) {
 	// ========== 5. 执行 FFmpeg 命令 ==========
 	console.log('步骤 4: 开始合成...\n');
 
-	command
-		.complexFilter(filterComplex)
-		.outputOptions(['-map', '0:v', '-map', '[outa]'])  // 直接映射原视频流,映射处理后的音频流
-		.videoCodec('copy')  // 视频流直接复制,不重新编码
-		.audioCodec('aac')   // 音频编码为 AAC
-		.outputOptions([
-			'-b:a', '192k',              // AAC 音频码率
-			'-ar', String(targetSampleRate), // 音频采样率
-			'-ac', '2',                  // 立体声
-			'-movflags', '+faststart',   // 优化网络播放
-		])
-		.output(outputPath)
-		.on('start', (commandLine) => {
-			console.log('========== FFmpeg 命令 ==========');
-			console.log(commandLine);
-			console.log('=================================\n');
-		})
-		.on('progress', (progress) => {
-			if (progress.percent) {
-				console.log(`处理中: ${progress.percent.toFixed(2)}% 完成`);
-			}
-		})
-		.on('stderr', (stderrLine) => {
-			// 只显示重要的 stderr 信息
-			if (
-				stderrLine.includes('error') ||
-				stderrLine.includes('Error') ||
-				stderrLine.includes('Invalid') ||
-				stderrLine.includes('warning')
-			) {
-				console.log('FFmpeg:', stderrLine);
-			}
-		})
-		.on('end', () => {
-			console.log('\n✓ 视频音频合成成功!');
-			console.log(`输出文件: ${outputPath}`);
+	return new Promise((resolve, reject) => {
+		command
+			.complexFilter(filterComplex)
+			.outputOptions([
+				'-map', '0:v',                 // 直接映射原视频流
+				'-map', '[outa]',              // 映射处理后的音频流
+				'-c:v', 'copy',                // 视频流直接复制,不重新编码
+				'-c:a', 'aac',                 // 音频编码为 AAC
+				'-b:a', '192k',                // AAC 音频码率
+				'-ar', String(targetSampleRate), // 音频采样率
+				'-ac', '2',                    // 立体声
+				'-movflags', '+faststart',     // 优化网络播放
+			])
+			.output(outputPath)
+			.on('start', (commandLine) => {
+				console.log('========== FFmpeg 命令 ==========');
+				console.log(commandLine);
+				console.log('=================================\n');
+			})
+			.on('progress', (progress) => {
+				if (progress.percent) {
+					console.log(`处理中: ${progress.percent.toFixed(2)}% 完成`);
+				}
+			})
+			.on('stderr', (stderrLine) => {
+				// 只显示重要的 stderr 信息
+				if (
+					stderrLine.includes('error') ||
+					stderrLine.includes('Error') ||
+					stderrLine.includes('Invalid') ||
+					stderrLine.includes('warning')
+				) {
+					console.log('FFmpeg:', stderrLine);
+				}
+			})
+			.on('end', () => {
+				console.log('\n✓ 视频音频合成成功!');
+				console.log(`输出文件: ${outputPath}`);
 
-			// 显示输出文件信息
-			if (fs.existsSync(outputPath)) {
-				const stats = fs.statSync(outputPath);
-				console.log(`文件大小: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
-			}
-			console.log('\n========== 任务完成 ==========');
-		})
-		.on('error', (err) => {
-			console.error('\n========== 错误信息 ==========');
-			console.error('错误:', err.message);
-			console.error('==============================\n');
-			throw err;
-		})
-		.run();
+				// 显示输出文件信息
+				if (fs.existsSync(outputPath)) {
+					const stats = fs.statSync(outputPath);
+					console.log(`文件大小: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
+				}
+				console.log('\n========== 任务完成 ==========');
+				resolve();
+			})
+			.on('error', (err) => {
+				console.error('\n========== 错误信息 ==========');
+				console.error('错误:', err.message);
+				console.error('==============================\n');
+				reject(err);
+			})
+			.run();
+	});
 }
 
 // ========== 测试用例 ==========
@@ -319,7 +333,7 @@ async function main() {
 			},
 			{
 				path: '/Users/liuyang/Downloads/test_media/audio2.mp3',
-				startTime: 15, 
+				startTime: 68, 
 			},
 		],
 
