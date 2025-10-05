@@ -1,15 +1,15 @@
 {
-  "name": "n8n-nodes-mytest",
+  "name": "n8n-nodes-media-composition",
   "version": "0.1.0",
-  "description": "",
+  "description": "Merge multiple audio files in sequence with n8n",
   "keywords": [
     "n8n-community-node-package"
   ],
   "license": "MIT",
   "homepage": "",
   "author": {
-    "name": "",
-    "email": ""
+    "name": "lp",
+    "email": "ly_4_14@163.com"
   },
   "repository": {
     "type": "git"
@@ -21,10 +21,10 @@
   "scripts": {
     "build": "npx rimraf dist && tsc && gulp build:icons",
     "dev": "tsc --watch",
-    "format": "prettier nodes credentials --write",
-    "lint": "eslint nodes credentials package.json",
-    "lintfix": "eslint nodes credentials package.json --fix",
-    "prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.js nodes credentials package.json"
+    "format": "prettier nodes --write",
+    "lint": "eslint nodes package.json",
+    "lintfix": "eslint nodes package.json --fix",
+    "prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.js nodes package.json"
   },
   "files": [
     "dist"
