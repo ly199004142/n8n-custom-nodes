@@ -15,11 +15,11 @@ function parseFps(fpsString) {
 
 // 配置：在这里设置你的视频文件路径和输出路径
 const videoFiles = [
-	'/Users/liuyang/Downloads/example_bgvideo.mp4',
-	'/Users/liuyang/Downloads/617.mp4',
+	'/Users/liuyang/Downloads/test_media/example_bgvideo.mp4',
+	'/Users/liuyang/Downloads/test_media/78.mp4',
 ];
 
-const outputPath = '/Users/liuyang/Downloads/testabc.mp4';
+const outputPath = '/Users/liuyang/Downloads/test_media/testabc.mp4';
 
 // 验证文件存在
 console.log('验证视频文件...');
