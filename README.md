@@ -1,48 +1,125 @@
-![Banner image](https://user-images.githubusercontent.com/10284570/173569848-c624317f-42b1-45a6-ab09-f0ea3c247648.png)
+# n8n-nodes-media-composition
 
-# n8n-nodes-starter
+This is an n8n community node. It lets you merge multiple audio files in your n8n workflows.
 
-This repo contains example nodes to help you get started building your own custom integrations for [n8n](https://n8n.io). It includes the node linter and other dependencies.
+n8n-nodes-media-composition provides audio merging functionality to concatenate multiple audio files in sequence.
 
-To make your custom node available to the community, you must create it as an npm package, and [submit it to the npm registry](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry).
+[n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
 
-If you would like your node to be available on n8n cloud you can also [submit your node for verification](https://docs.n8n.io/integrations/creating-nodes/deploy/submit-community-nodes/).
+[Installation](#installation)
+[Operations](#operations)
+[Compatibility](#compatibility)
+[Prerequisites](#prerequisites)
+[Usage](#usage)
+[Resources](#resources)
+
+## Installation
+
+Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n community nodes documentation.
+
+## Operations
+
+This node supports the following operation:
+
+- **Audio Merge** - Concatenate multiple audio files in sequence into a single audio file
+
+### Input Modes
+
+The node supports two input modes:
+
+1. **From Previous Node** - Get audio file paths from the previous node's output
+2. **Manual Input** - Manually enter audio file paths (one per line)
+
+### Parameters
+
+- **Input Mode** - Select input mode (from previous node or manual input)
+- **Audio File Path** - (From Previous Node mode) Audio file path field mapping
+- **Audio File Paths** - (Manual Input mode) Audio file path list, one per line
+- **Output File Path** - Absolute path for the output file
+
+## Compatibility
+
+- Minimum n8n version: 0.190.0
+- Tested with: 1.x
+- Node.js version requirement: >= 20.15
 
 ## Prerequisites
 
-You need the following installed on your development machine:
+**Important**: You must have FFmpeg installed on your system before using this node.
 
-* [git](https://git-scm.com/downloads)
-* Node.js and npm. Minimum version Node 20. You can find instructions on how to install both using nvm (Node Version Manager) for Linux, Mac, and WSL [here](https://github.com/nvm-sh/nvm). For Windows users, refer to Microsoft's guide to [Install NodeJS on Windows](https://docs.microsoft.com/en-us/windows/dev-environment/javascript/nodejs-on-windows).
-* Install n8n with:
-  ```
-  npm install n8n -g
-  ```
-* Recommended: follow n8n's guide to [set up your development environment](https://docs.n8n.io/integrations/creating-nodes/build/node-development-environment/).
+### Installing FFmpeg
 
-## Using this starter
+#### macOS
+```bash
+brew install ffmpeg
+```
 
-These are the basic steps for working with the starter. For detailed guidance on creating and publishing nodes, refer to the [documentation](https://docs.n8n.io/integrations/creating-nodes/).
+#### Ubuntu/Debian
+```bash
+sudo apt update
+sudo apt install ffmpeg
+```
 
-1. [Generate a new repository](https://github.com/n8n-io/n8n-nodes-starter/generate) from this template repository.
-2. Clone your new repo:
+#### Windows
+Download and install from [FFmpeg official website](https://ffmpeg.org/download.html), or use a package manager:
+```bash
+choco install ffmpeg
+```
+
+#### Verify Installation
+```bash
+ffmpeg -version
+```
+
+## Usage
+
+### Example 1: Merge Audio from Previous Node
+
+1. Use a File node or other node that outputs data containing audio file paths
+2. Connect to the Audio Merge node
+3. Select "From Previous Node" input mode
+4. Drag the path field to the "Audio File Path" parameter (default is `{{ $json.path }}`)
+5. Set the output file path
+6. Execute the workflow
+
+### Example 2: Merge with Manual Input
+
+1. Add an Audio Merge node
+2. Select "Manual Input" input mode
+3. Enter audio file paths in "Audio File Paths", one per line:
    ```
-   git clone https://github.com/<your organization>/<your-repo-name>.git
+   /path/to/audio1.mp3
+   /path/to/audio2.mp3
+   /path/to/audio3.mp3
    ```
-3. Run `npm i` to install dependencies.
-4. Open the project in your editor.
-5. Browse the examples in `/nodes` and `/credentials`. Modify the examples, or replace them with your own nodes.
-6. Update the `package.json` to match your details.
-7. Run `npm run lint` to check for errors or `npm run lintfix` to automatically fix errors when possible.
-8. Test your node locally. Refer to [Run your node locally](https://docs.n8n.io/integrations/creating-nodes/test/run-node-locally/) for guidance.
-9. Replace this README with documentation for your node. Use the [README_TEMPLATE](README_TEMPLATE.md) to get started.
-10. Update the LICENSE file to use your details.
-11. [Publish](https://docs.npmjs.com/packages-and-modules/contributing-packages-to-the-registry) your package to npm.
+4. Set the output file path
+5. Execute the workflow
 
-## More information
+### Output Format
 
-Refer to our [documentation on creating nodes](https://docs.n8n.io/integrations/creating-nodes/) for detailed information on building your own nodes.
+Upon successful execution, the node outputs:
+```json
+{
+  "success": true,
+  "outputPath": "/path/to/output.mp3",
+  "audioFilesCount": 3,
+  "audioFiles": [
+    "/path/to/audio1.mp3",
+    "/path/to/audio2.mp3",
+    "/path/to/audio3.mp3"
+  ]
+}
+```
 
-## License
+### Important Notes
 
-[MIT](https://github.com/n8n-io/n8n-nodes-starter/blob/master/LICENSE.md)
+- All audio file paths must be absolute paths
+- The output directory must exist and have write permissions
+- Audio files will be concatenated in the specified order
+- Output format is MP3 with 128k bitrate
+
+## Resources
+
+- [n8n community nodes documentation](https://docs.n8n.io/integrations/#community-nodes)
+- [FFmpeg official documentation](https://ffmpeg.org/documentation.html)
+- [n8n workflow automation documentation](https://docs.n8n.io/)
