@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-media-composition",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Merge multiple audio files in sequence with n8n",
   "keywords": [
     "n8n-community-node-package"
