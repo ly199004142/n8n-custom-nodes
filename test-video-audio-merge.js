@@ -140,8 +140,9 @@ async function mergeVideoWithAudios(config) {
 	// 添加视频输入(索引 0)
 	command.input(videoPath);
 
-	// 复制视频流(不做处理,保持原样)
-	filterParts.push(`[0:v]copy[outv]`);
+	// 视频流不做处理,直接传递(使用 null 滤镜或直接映射)
+	// 注意: 在 filter_complex 中不能使用 'copy',需要用 null 滤镜或者不处理视频流
+	// 这里我们不在 filterParts 中处理视频,而是直接映射原视频流
 
 	// 处理原视频音频
 	if (!muteOriginalAudio && videoInfo.hasAudio) {
@@ -252,7 +253,7 @@ async function mergeVideoWithAudios(config) {
 
 	command
 		.complexFilter(filterComplex)
-		.outputOptions(['-map', '[outv]', '-map', '[outa]'])
+		.outputOptions(['-map', '0:v', '-map', '[outa]'])  // 直接映射原视频流,映射处理后的音频流
 		.videoCodec('copy')  // 视频流直接复制,不重新编码
 		.audioCodec('aac')   // 音频编码为 AAC
 		.outputOptions([
