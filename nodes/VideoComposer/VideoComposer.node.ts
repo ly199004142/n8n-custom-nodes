@@ -129,9 +129,72 @@ export class VideoComposer implements INodeType {
 				required: true,
 			},
 			{
+				displayName: 'Audio Input Mode',
+				name: 'audioInputMode',
+				type: 'options',
+				options: [
+					{
+						name: 'From Previous Node',
+						value: 'fromNode',
+						description: 'Get audio files array from previous node output',
+					},
+					{
+						name: 'Manual Input',
+						value: 'manual',
+						description: 'Manually configure audio files',
+					},
+				],
+				default: 'fromNode',
+				description: 'How to provide the audio files',
+			},
+			{
+				displayName: 'Audio Files Array',
+				name: 'audioFilesArray',
+				type: 'string',
+				displayOptions: {
+					show: {
+						audioInputMode: ['fromNode'],
+					},
+				},
+				default: '={{ $json.audioFiles }}',
+				description: 'Audio files array from previous node. Expected format: [{"path": "/path/to/audio.mp3", "time": 0}].',
+				required: true,
+			},
+			{
+				displayName: 'Path Field Name',
+				name: 'pathFieldName',
+				type: 'string',
+				displayOptions: {
+					show: {
+						audioInputMode: ['fromNode'],
+					},
+				},
+				default: 'path',
+				description: 'Field name for audio file path in the array (e.g., "path", "path", "filePath")',
+				required: true,
+			},
+			{
+				displayName: 'Time Field Name',
+				name: 'timeFieldName',
+				type: 'string',
+				displayOptions: {
+					show: {
+						audioInputMode: ['fromNode'],
+					},
+				},
+				default: 'time',
+				description: 'Field name for start time in the array (e.g., "time", "startTime")',
+				required: true,
+			},
+			{
 				displayName: 'Audio Files',
 				name: 'audioFiles',
 				type: 'fixedCollection',
+				displayOptions: {
+					show: {
+						audioInputMode: ['manual'],
+					},
+				},
 				typeOptions: {
 					multipleValues: true,
 				},
@@ -197,10 +260,31 @@ export class VideoComposer implements INodeType {
 			try {
 				// Step 1: Get parameters
 				const videoPath = this.getNodeParameter('videoPath', itemIndex, '') as string;
-				const audioFilesParam = this.getNodeParameter('audioFiles', itemIndex, {}) as {
-					audioFile?: Array<{ path: string; startTime: number }>;
-				};
-				const audioFiles = audioFilesParam.audioFile || [];
+				const audioInputMode = this.getNodeParameter('audioInputMode', itemIndex, 'manual') as string;
+
+				let audioFiles: Array<{ path: string; startTime: number }> = [];
+
+				if (audioInputMode === 'fromNode') {
+					// Get audio files from previous node
+					const audioFilesArray = this.getNodeParameter('audioFilesArray', itemIndex, []) as any;
+					const pathFieldName = this.getNodeParameter('pathFieldName', itemIndex, 'path') as string;
+					const timeFieldName = this.getNodeParameter('timeFieldName', itemIndex, 'time') as string;
+
+					// Parse the array
+					if (Array.isArray(audioFilesArray)) {
+						audioFiles = audioFilesArray.map((item: any) => ({
+							path: item[pathFieldName] || '',
+							startTime: typeof item[timeFieldName] === 'number' ? item[timeFieldName] : 0,
+						}));
+					}
+				} else {
+					// Manual input mode
+					const audioFilesParam = this.getNodeParameter('audioFiles', itemIndex, {}) as {
+						audioFile?: Array<{ path: string; startTime: number }>;
+					};
+					audioFiles = audioFilesParam.audioFile || [];
+				}
+
 				const subtitlePath = this.getNodeParameter('subtitlePath', itemIndex, '') as string;
 				const muteOriginalAudio = this.getNodeParameter('muteOriginalAudio', itemIndex, false) as boolean;
 				const outputPath = this.getNodeParameter('outputPath', itemIndex, '') as string;
