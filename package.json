@@ -33,7 +33,8 @@
     "n8nNodesApiVersion": 1,
     "nodes": [
       "dist/nodes/AudioMerge/AudioMerge.node.js",
-      "dist/nodes/VideoMerge/VideoMerge.node.js"
+      "dist/nodes/VideoMerge/VideoMerge.node.js",
+      "dist/nodes/VideoComposer/VideoComposer.node.js"
     ]
   },
   "devDependencies": {
