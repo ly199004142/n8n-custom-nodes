@@ -39,9 +39,19 @@ async function getAudioDuration(filePath) {
 }
 
 /**
+ * Escape subtitle file path for FFmpeg subtitles filter
+ */
+function escapeSubtitlePath(filePath) {
+  return filePath
+    .replace(/\\/g, '\\\\\\\\')  // Backslash: \ -> \\\\
+    .replace(/:/g, '\\:')        // Colon: : -> \:
+    .replace(/'/g, "\\'");       // Single quote: ' -> \'
+}
+
+/**
  * Compose images and audio into video
  */
-async function composeImageAudioToVideo(sceneList, audioList, outputPath) {
+async function composeImageAudioToVideo(sceneList, audioList, subtitlePath, outputPath) {
   try {
     // 1. Validate all files exist
     console.log('Validating file existence...');
@@ -55,6 +65,15 @@ async function composeImageAudioToVideo(sceneList, audioList, outputPath) {
         throw new Error(`Audio file not found: ${audio.audio_filePath}`);
       }
     }
+
+    // Validate subtitle file if provided
+    if (subtitlePath && subtitlePath.trim().length > 0) {
+      if (!fs.existsSync(subtitlePath)) {
+        throw new Error(`Subtitle file not found: ${subtitlePath}`);
+      }
+      console.log(`Subtitle file: ${subtitlePath}`);
+    }
+
     console.log('All files validated');
 
     // 2. Calculate total duration (milliseconds to seconds)
@@ -101,8 +120,21 @@ async function composeImageAudioToVideo(sceneList, audioList, outputPath) {
     }
 
     // 4.4 Concat all image videos
-    const concatFilter = `${videoLabels.join('')}concat=n=${sceneList.length}:v=1:a=0[outv]`;
+    const concatFilter = `${videoLabels.join('')}concat=n=${sceneList.length}:v=1:a=0[video_concat]`;
     filterParts.push(concatFilter);
+
+    // 4.4.1 Add subtitle burning if subtitle file is provided
+    let videoOutputLabel = '[video_concat]';
+    if (subtitlePath && subtitlePath.trim().length > 0) {
+      const escapedSubPath = escapeSubtitlePath(subtitlePath);
+      const subtitleFilter = `[video_concat]subtitles='${escapedSubPath}'[outv]`;
+      filterParts.push(subtitleFilter);
+      videoOutputLabel = '[outv]';
+    } else {
+      // No subtitle, just rename the label
+      filterParts.push('[video_concat]copy[outv]');
+      videoOutputLabel = '[outv]';
+    }
 
     // 4.5 Build audio filters
     const audioLabels = [];
@@ -228,7 +260,8 @@ async function composeImageAudioToVideo(sceneList, audioList, outputPath) {
       outputPath: outputPath,
       totalDuration: totalDuration,
       sceneCount: sceneList.length,
-      audioCount: audioList.length
+      audioCount: audioList.length,
+      hasSubtitle: !!(subtitlePath && subtitlePath.trim().length > 0)
     };
 
   } catch (error) {
@@ -246,15 +279,17 @@ async function main() {
   const inputData = loadInputData(inputJsonPath);
   const sceneList = inputData.data.scence_list;
   const audioList = inputData.data.audio_list;
+  const subtitlePath = inputData.data.subtitle_filename || '';
   const outputPath = '/Users/liuyang/Downloads/my-test/output.mp4';
 
   console.log('=== Image + Audio to Video Composition ===');
   console.log(`Scene count: ${sceneList.length}`);
   console.log(`Audio count: ${audioList.length}`);
+  console.log(`Subtitle: ${subtitlePath || 'None'}`);
   console.log(`Output path: ${outputPath}\n`);
 
   try {
-    const result = await composeImageAudioToVideo(sceneList, audioList, outputPath);
+    const result = await composeImageAudioToVideo(sceneList, audioList, subtitlePath, outputPath);
     console.log('\n=== Composition Result ===');
     console.log(JSON.stringify(result, null, 2));
   } catch (error) {
