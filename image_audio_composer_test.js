@@ -108,13 +108,20 @@ async function composeImageAudioToVideo(sceneList, audioList, subtitlePath, outp
       command.input(audioList[i].audio_filePath);
     }
 
-    // 4.3 Build video filters - set duration for each image and scale
+    // 4.3 Build video filters - set duration for each image and scale with Ken Burns effect
     const videoLabels = [];
     for (let i = 0; i < sceneList.length; i++) {
       const duration = sceneList[i].scene_duration / 1000;
-      // Set image duration, scale to uniform size (1920x1080), set fps to 25
-      // Use loop filter to repeat the image frame for the specified duration
-      const filter = `[${i}:v]scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=25,loop=loop=-1:size=1:start=0,trim=duration=${duration},setpts=PTS-STARTPTS[v${i}]`;
+      const fps = 25;
+      const totalFrames = Math.ceil(duration * fps);
+
+      // Ken Burns effect: zoom in from 1.0x to 1.1x (10% zoom)
+      // Using zoompan filter with fixed center point to avoid jittering
+      // - z: zoom factor (1.0 to 1.1)
+      // - d: duration in frames
+      // - x, y: fixed center coordinates (center of input image)
+      // - s: output size
+      const filter = `[${i}:v]scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${fps},zoompan=z='1+0.1*on/${totalFrames}':d=${totalFrames}:x='iw/2-(1920/2)':y='ih/2-(1080/2)':s=1920x1080,trim=duration=${duration},setpts=PTS-STARTPTS[v${i}]`;
       filterParts.push(filter);
       videoLabels.push(`[v${i}]`);
     }
