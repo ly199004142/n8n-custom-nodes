@@ -1,0 +1,161 @@
+{
+  "scence_list": [
+        {
+          "image_filepath": "/Users/liuyang/Downloads/my-test/202510131855136279B405559AE1459A49-5081-0~tplv-vuqhorh59i-image-v1.jpg",
+          "scene_duration": 17984
+        },
+        {
+          "image_filepath": "/Users/liuyang/Downloads/my-test/202510131855136279B405559AE1459A49-5081-1~tplv-vuqhorh59i-image-v1.jpg",
+          "scene_duration": 8912
+        },
+        {
+          "image_filepath": "/Users/liuyang/Downloads/my-test/202510131855136279B405559AE1459A49-5081-2~tplv-vuqhorh59i-image-v1.jpg",
+          "scene_duration": 12332
+        },
+        {
+          "image_filepath": "/Users/liuyang/Downloads/my-test/202510131855136279B405559AE1459A49-5081-3~tplv-vuqhorh59i-image-v1.jpg",
+          "scene_duration": 23480
+        },
+        {
+          "image_filepath": "/Users/liuyang/Downloads/my-test/202510131855136279B405559AE1459A49-5081-4~tplv-vuqhorh59i-image-v1.jpg",
+          "scene_duration": 21428
+        },
+        {
+          "image_filepath": "/Users/liuyang/Downloads/my-test/202510131855136279B405559AE1459A49-5081-5~tplv-vuqhorh59i-image-v1.jpg",
+          "scene_duration": 17520
+        },
+        {
+          "image_filepath": "/Users/liuyang/Downloads/my-test/202510131855136279B405559AE1459A49-5081-6~tplv-vuqhorh59i-image-v1.jpg",
+          "scene_duration": 11776
+        },
+        {
+          "image_filepath": "/Users/liuyang/Downloads/my-test/202510131855136279B405559AE1459A49-5081-7~tplv-vuqhorh59i-image-v1.jpg",
+          "scene_duration": 10804
+        },
+        {
+          "image_filepath": "/Users/liuyang/Downloads/my-test/202510131855136279B405559AE1459A49-5081-8~tplv-vuqhorh59i-image-v1.jpg",
+          "scene_duration": 7364
+        },
+        {
+          "image_filepath": "/Users/liuyang/Downloads/my-test/202510131855136279B405559AE1459A49-5081-9~tplv-vuqhorh59i-image-v1.jpg",
+          "scene_duration": 17244
+        }
+      ],
+  "audio_list": [
+        {
+          "text": "下班回家，那是一个被疲惫和挫败感浸透的日子。",
+          "audio_starttime": 500,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-13-34-417_513.mp3"
+        },
+        {
+          "text": "城市的喧嚣被我远远抛在身后，但内心的沉重却一路跟随着，像一件湿透的斗篷。",
+          "audio_starttime": 5596,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-13-41-978_839.mp3"
+        },
+        {
+          "text": "我只想遁入床榻，隔绝所有声音和目光。",
+          "audio_starttime": 13392,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-13-49-429_693.mp3"
+        },
+        {
+          "text": "家门轻轻合上，我把沉重的包随意扔在玄关，身体像被抽空了力气的木偶，瘫倒在沙发上。",
+          "audio_starttime": 17984,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-13-56-921_500.mp3"
+        },
+        {
+          "text": "指尖习惯性地触碰手机屏幕，在那个虚构的世界里漫无目的地滑动，耳边只有冰箱单调的嗡鸣，试图填补空气中令人窒息的寂静。",
+          "audio_starttime": 26896,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-14-05-124_889.mp3"
+        },
+        {
+          "text": "几分钟后，一声轻柔的叩门声打破了这份凝滞。",
+          "audio_starttime": 39228,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-14-13-169_758.mp3"
+        },
+        {
+          "text": "我抬起头，视线模糊地望向门口。",
+          "audio_starttime": 44612,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-14-21-527_13.mp3"
+        },
+        {
+          "text": "接着，一个小小的身影探了进来，是我的妹妹。",
+          "audio_starttime": 48376,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-14-28-689_986.mp3"
+        },
+        {
+          "text": "她双手捧着一只盘子，盘中叠放着几块曲奇，巧克力的余温还在其上微微融化，散发出诱人的甜香。",
+          "audio_starttime": 53004,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-14-37-330_941.mp3"
+        },
+        {
+          "text": "她的眼睛亮亮的，带着一丝不解，一丝关切。",
+          "audio_starttime": 62708,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-14-47-926_804.mp3"
+        },
+        {
+          "text": "她没有说那些大而无当的“振作起来”的话，也没有任何表演的成分。",
+          "audio_starttime": 67300,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-14-55-502_498.mp3"
+        },
+        {
+          "text": "只是走过来，轻轻地将盘子放在我身旁，声音细小而温柔，带着一点点稚气：",
+          "audio_starttime": 72828,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-15-03-909_219.mp3"
+        },
+        {
+          "text": "我看着你好像很累。",
+          "audio_starttime": 80696,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-15-11-189_582.mp3"
+        },
+        {
+          "text": "那一刻，世界仿佛静止了。",
+          "audio_starttime": 84136,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-15-18-100_449.mp3"
+        },
+        {
+          "text": "所有缠绕着我的阴霾，都在她简单的话语和那盘温热的曲奇面前，瞬间变得柔软、模糊。",
+          "audio_starttime": 87468,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-15-26-148_601.mp3"
+        },
+        {
+          "text": "今天一整天都没有上扬过的嘴角，终于轻轻地勾勒出了一丝微笑。",
+          "audio_starttime": 95732,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-15-33-498_908.mp3"
+        },
+        {
+          "text": "我拿起一块曲奇，送入口中。",
+          "audio_starttime": 101656,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-15-40-245_312.mp3"
+        },
+        {
+          "text": "巧克力的醇厚与饼干的酥脆在舌尖融化开来，那股暖意从味蕾直抵心底。",
+          "audio_starttime": 105024,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-15-49-316_618.mp3"
+        },
+        {
+          "text": "突然之间，一切都变了。",
+          "audio_starttime": 113432,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-15-56-130_16.mp3"
+        },
+        {
+          "text": "胸口郁结的空气似乎找到了出口，呼吸变得顺畅，压在心头的巨石也轻了许多。",
+          "audio_starttime": 116368,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-16-04-446_515.mp3"
+        },
+        {
+          "text": "原来，将一个人从糟糕的一天中拉回来的，有时并不需要惊天动地的壮举。",
+          "audio_starttime": 124236,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-16-11-903_844.mp3"
+        },
+        {
+          "text": "而仅仅是这样一份两分钟的温暖，一个不经意的善意，就能悄然改变一个人的整个世界。",
+          "audio_starttime": 131600,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-16-19-537_152.mp3"
+        },
+        {
+          "text": "妹妹也许永远不会知道，她那份无言的关怀，是如何点亮了我那近乎晦暗的一天。",
+          "audio_starttime": 140548,
+          "audio_filePath": "/Users/liuyang/Downloads/my-test/audio_2025-10-13_19-16-27-371_912.mp3"
+        }
+      ]
+}
