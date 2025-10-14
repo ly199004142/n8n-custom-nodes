@@ -561,6 +561,7 @@ export class ImageVideoComposer implements INodeType {
 						})
 						.on('end', () => {
 							console.log('Video composition completed!');
+							resolve();
 						})
 						.on('error', (err: Error) => {
 							console.error('FFmpeg error:', err.message);
