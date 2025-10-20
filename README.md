@@ -88,9 +88,11 @@ Compose videos with multiple audio tracks and optional subtitle burning.
 
 ## Compatibility
 
+- **⚠️ Self-Hosted Only**: This package is not compatible with n8n Cloud due to system dependencies (FFmpeg)
 - Minimum n8n version: 0.190.0
 - Tested with: 1.x
 - Node.js version requirement: >= 20.15
+- Requires: FFmpeg installed on the system
 
 ## Prerequisites
 
