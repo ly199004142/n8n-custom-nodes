@@ -130,7 +130,10 @@ export class AudioMerge implements INodeType {
 				// Create temporary concat file list
 				const tempDir = path.dirname(outputPath);
 				const fileListPath = path.join(tempDir, `concat-list-${Date.now()}.txt`);
-				const fileListContent = audioFiles.map((file) => `file '${file}'`).join('\n');
+				// Convert Windows backslashes to forward slashes for ffmpeg compatibility
+				const fileListContent = audioFiles
+					.map((file) => `file '${file.replace(/\\/g, '/')}'`)
+					.join('\n');
 
 				fs.writeFileSync(fileListPath, fileListContent);
 
@@ -216,7 +219,10 @@ export class AudioMerge implements INodeType {
 					// Create temporary concat file list
 					const tempDir = path.dirname(outputPath);
 					const fileListPath = path.join(tempDir, `concat-list-${Date.now()}.txt`);
-					const fileListContent = audioFiles.map((file) => `file '${file}'`).join('\n');
+					// Convert Windows backslashes to forward slashes for ffmpeg compatibility
+					const fileListContent = audioFiles
+						.map((file) => `file '${file.replace(/\\/g, '/')}'`)
+						.join('\n');
 
 					fs.writeFileSync(fileListPath, fileListContent);
 
