@@ -5,7 +5,7 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
-import ffmpeg from 'fluent-ffmpeg';
+import { execFFmpeg } from '../utils/ffmpeg';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -134,30 +134,28 @@ export class AudioMerge implements INodeType {
 
 				fs.writeFileSync(fileListPath, fileListContent);
 
-				// Concatenate audio files using fluent-ffmpeg
-				await new Promise<void>((resolve, reject) => {
-					ffmpeg()
-						.input(fileListPath)
-						.inputOptions(['-f', 'concat', '-safe', '0'])
-						.audioCodec('libmp3lame')
-						.audioBitrate('128k')
-						.output(outputPath)
-						.on('end', () => {
-							// Clean up temporary file
-							if (fs.existsSync(fileListPath)) {
-								fs.unlinkSync(fileListPath);
-							}
-							resolve();
-						})
-						.on('error', (err: Error) => {
-							// Clean up temporary file on error
-							if (fs.existsSync(fileListPath)) {
-								fs.unlinkSync(fileListPath);
-							}
-							reject(err);
-						})
-						.run();
-				});
+				// Concatenate audio files using ffmpeg
+				try {
+					await execFFmpeg({
+						args: [
+							'-f', 'concat',
+							'-safe', '0',
+							'-i', fileListPath,
+							'-c:a', 'libmp3lame',
+							'-b:a', '128k',
+							outputPath,
+						],
+						onStderr: (line) => {
+							// Log progress information
+							console.log('FFmpeg:', line);
+						},
+					});
+				} finally {
+					// Clean up temporary file
+					if (fs.existsSync(fileListPath)) {
+						fs.unlinkSync(fileListPath);
+					}
+				}
 
 				// Return success result
 				returnData.push({
@@ -222,30 +220,28 @@ export class AudioMerge implements INodeType {
 
 					fs.writeFileSync(fileListPath, fileListContent);
 
-					// Concatenate audio files using fluent-ffmpeg
-					await new Promise<void>((resolve, reject) => {
-						ffmpeg()
-							.input(fileListPath)
-							.inputOptions(['-f', 'concat', '-safe', '0'])
-							.audioCodec('libmp3lame')
-							.audioBitrate('128k')
-							.output(outputPath)
-							.on('end', () => {
-								// Clean up temporary file
-								if (fs.existsSync(fileListPath)) {
-									fs.unlinkSync(fileListPath);
-								}
-								resolve();
-							})
-							.on('error', (err: Error) => {
-								// Clean up temporary file on error
-								if (fs.existsSync(fileListPath)) {
-									fs.unlinkSync(fileListPath);
-								}
-								reject(err);
-							})
-							.run();
-					});
+					// Concatenate audio files using ffmpeg
+					try {
+						await execFFmpeg({
+							args: [
+								'-f', 'concat',
+								'-safe', '0',
+								'-i', fileListPath,
+								'-c:a', 'libmp3lame',
+								'-b:a', '128k',
+								outputPath,
+							],
+							onStderr: (line) => {
+								// Log progress information
+								console.log('FFmpeg:', line);
+							},
+						});
+					} finally {
+						// Clean up temporary file
+						if (fs.existsSync(fileListPath)) {
+							fs.unlinkSync(fileListPath);
+						}
+					}
 
 					// Return success result
 					returnData.push({

@@ -6,7 +6,7 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
-import ffmpeg from 'fluent-ffmpeg';
+import { execFFmpeg, execFFprobe } from '../utils/ffmpeg';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -64,45 +64,38 @@ function getSubtitleFormat(filePath: string, node: INode): string {
  * @param type - Media type: 'video' or 'audio'
  */
 async function getMediaStreamInfo(filePath: string, type = 'video'): Promise<MediaStreamInfo> {
-	return new Promise((resolve, reject) => {
-		ffmpeg.ffprobe(filePath, (err, metadata) => {
-			if (err) {
-				reject(err);
-				return;
-			}
+	const metadata = await execFFprobe(filePath);
 
-			const videoStream = metadata.streams.find((s) => s.codec_type === 'video');
-			const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
-			const hasVideo = !!videoStream;
-			const hasAudio = !!audioStream;
+	const videoStream = metadata.streams.find((s) => s.codec_type === 'video');
+	const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
+	const hasVideo = !!videoStream;
+	const hasAudio = !!audioStream;
 
-			// Calculate accurate duration
-			const duration = Math.max(
-				typeof metadata.format.duration === 'number' ? metadata.format.duration : parseFloat(metadata.format.duration || '0'),
-				typeof videoStream?.duration === 'number' ? videoStream.duration : parseFloat(videoStream?.duration || '0'),
-				typeof audioStream?.duration === 'number' ? audioStream.duration : parseFloat(audioStream?.duration || '0')
-			);
+	// Calculate accurate duration
+	const duration = Math.max(
+		typeof metadata.format.duration === 'number' ? metadata.format.duration : parseFloat(metadata.format.duration as string || '0'),
+		typeof videoStream?.duration === 'number' ? videoStream.duration : parseFloat(videoStream?.duration as string || '0'),
+		typeof audioStream?.duration === 'number' ? audioStream.duration : parseFloat(audioStream?.duration as string || '0')
+	);
 
-			resolve({
-				filePath,
-				type,
-				hasVideo,
-				hasAudio,
-				duration,
-				videoStream: videoStream ? {
-					width: videoStream.width || 0,
-					height: videoStream.height || 0,
-					codec: videoStream.codec_name || '',
-				} : null,
-				audioStream: audioStream ? {
-					codec: audioStream.codec_name || '',
-					sampleRate: typeof audioStream.sample_rate === 'number' ? audioStream.sample_rate : parseInt(audioStream.sample_rate || '44100'),
-					channels: audioStream.channels || 2,
-					channelLayout: audioStream.channel_layout || 'stereo',
-				} : null,
-			});
-		});
-	});
+	return {
+		filePath,
+		type,
+		hasVideo,
+		hasAudio,
+		duration,
+		videoStream: videoStream ? {
+			width: videoStream.width || 0,
+			height: videoStream.height || 0,
+			codec: videoStream.codec_name || '',
+		} : null,
+		audioStream: audioStream ? {
+			codec: audioStream.codec_name || '',
+			sampleRate: typeof audioStream.sample_rate === 'number' ? audioStream.sample_rate : parseInt(audioStream.sample_rate as string || '44100'),
+			channels: audioStream.channels || 2,
+			channelLayout: audioStream.channel_layout || 'stereo',
+		} : null,
+	};
 }
 
 export class VideoComposer implements INodeType {
@@ -346,13 +339,13 @@ export class VideoComposer implements INodeType {
 				const targetSampleRate = 44100; // Unified sample rate
 				const videoDuration = videoInfo.duration;
 
-				const command = ffmpeg();
 				const filterParts: string[] = [];
 				const audioFilterParts: string[] = []; // Audio filter section
 				const audioInputLabels: string[] = []; // Store all audio stream labels for mixing
+				const inputFiles: string[] = []; // Track input files
 
 				// Add video input (index 0)
-				command.input(videoPath);
+				inputFiles.push(videoPath);
 
 				// Step 4.1: Build video filter (subtitle burning)
 				let videoOutputLabel = '0:v'; // Default: use original video stream directly
@@ -403,7 +396,7 @@ export class VideoComposer implements INodeType {
 					}
 
 					// Add audio input
-					command.input(audioInfo.filePath);
+					inputFiles.push(audioInfo.filePath);
 					const inputIndex = actualInputIndex++; // Use actual input index and increment
 
 					// Build filter chain for this audio
@@ -464,54 +457,52 @@ export class VideoComposer implements INodeType {
 				const filterComplex = filterParts.join(';');
 
 				// Step 5: Execute FFmpeg command
-				await new Promise<void>((resolve, reject) => {
-					// Build output options
-					const outputOptions = [
-						'-map', videoOutputLabel,          // Map video stream
-						'-map', '[outa]',                  // Map processed audio stream
-					];
+				const ffmpegArgs: string[] = [];
 
-					// Decide video encoding method based on subtitle presence
-					if (subtitlePath && subtitlePath.trim().length > 0) {
-						// Has subtitle: must re-encode video
-						outputOptions.push(
-							'-c:v', 'libx264',             // H.264 video encoding
-							'-preset', 'medium',           // Encoding speed
-							'-crf', '23',                  // Video quality
-							'-pix_fmt', 'yuv420p',         // Pixel format
-						);
-					} else {
-						// No subtitle: copy video stream directly
-						outputOptions.push('-c:v', 'copy');
-					}
+				// Add input files
+				for (const inputFile of inputFiles) {
+					ffmpegArgs.push('-i', inputFile);
+				}
 
-					// Audio encoding parameters
-					outputOptions.push(
-						'-c:a', 'aac',                     // Audio encode as AAC
-						'-b:a', '192k',                    // AAC audio bitrate
-						'-ar', String(targetSampleRate),   // Audio sample rate
-						'-ac', '2',                        // Stereo
-						'-movflags', '+faststart',         // Optimize for network playback
+				// Add filter complex
+				ffmpegArgs.push('-filter_complex', filterComplex);
+
+				// Map streams
+				ffmpegArgs.push('-map', videoOutputLabel);
+				ffmpegArgs.push('-map', '[outa]');
+
+				// Decide video encoding method based on subtitle presence
+				if (subtitlePath && subtitlePath.trim().length > 0) {
+					// Has subtitle: must re-encode video
+					ffmpegArgs.push(
+						'-c:v', 'libx264',             // H.264 video encoding
+						'-preset', 'medium',           // Encoding speed
+						'-crf', '23',                  // Video quality
+						'-pix_fmt', 'yuv420p',         // Pixel format
 					);
+				} else {
+					// No subtitle: copy video stream directly
+					ffmpegArgs.push('-c:v', 'copy');
+				}
 
-					command
-						.complexFilter(filterComplex)
-						.outputOptions(outputOptions)
-						.output(outputPath)
-						.on('start', (commandLine: string) => {
-							console.log('FFmpeg command:', commandLine);
-						})
-						.on('stderr', (stderrLine: string) => {
-							console.log('FFmpeg stderr:', stderrLine);
-						})
-						.on('end', () => {
-							resolve();
-						})
-						.on('error', (err: Error) => {
-							console.error('FFmpeg error:', err.message);
-							reject(err);
-						})
-						.run();
+				// Audio encoding parameters
+				ffmpegArgs.push(
+					'-c:a', 'aac',                     // Audio encode as AAC
+					'-b:a', '192k',                    // AAC audio bitrate
+					'-ar', String(targetSampleRate),   // Audio sample rate
+					'-ac', '2',                        // Stereo
+					'-movflags', '+faststart',         // Optimize for network playback
+				);
+
+				// Output file
+				ffmpegArgs.push(outputPath);
+
+				// Execute ffmpeg
+				await execFFmpeg({
+					args: ffmpegArgs,
+					onStderr: (line) => {
+						console.log('FFmpeg stderr:', line);
+					},
 				});
 
 				// Step 6: Return result

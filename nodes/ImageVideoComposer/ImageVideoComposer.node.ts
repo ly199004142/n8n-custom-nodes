@@ -6,7 +6,7 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
-import ffmpeg from 'fluent-ffmpeg';
+import { execFFmpeg, execFFprobe } from '../utils/ffmpeg';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -38,16 +38,11 @@ function escapeSubtitlePath(filePath: string): string {
  * Get audio file duration in seconds
  */
 async function getAudioDuration(filePath: string): Promise<number> {
-	return new Promise((resolve, reject) => {
-		ffmpeg.ffprobe(filePath, (err, metadata) => {
-			if (err) {
-				reject(err);
-				return;
-			}
-			const duration = metadata.format.duration || 0;
-			resolve(duration);
-		});
-	});
+	const metadata = await execFFprobe(filePath);
+	const duration = typeof metadata.format.duration === 'number'
+		? metadata.format.duration
+		: parseFloat(metadata.format.duration as string || '0');
+	return duration;
 }
 
 /**
@@ -415,19 +410,19 @@ export class ImageVideoComposer implements INodeType {
 				}
 
 				// Step 5: Build FFmpeg command
-				const command = ffmpeg();
 				const filterParts: string[] = [];
 				const targetSampleRate = 44100;
+				const inputFiles: string[] = [];
 
 				// 5.1 Add all image inputs
 				for (let i = 0; i < sceneList.length; i++) {
-					command.input(sceneList[i].image_filepath);
+					inputFiles.push(sceneList[i].image_filepath);
 				}
 
 				// 5.2 Add all audio inputs
 				const audioStartIndex = sceneList.length;
 				for (let i = 0; i < audioList.length; i++) {
-					command.input(audioList[i].audio_filePath);
+					inputFiles.push(audioList[i].audio_filePath);
 				}
 
 				// 5.3 Build video filters - set duration for each image and scaling effect
@@ -534,41 +529,45 @@ export class ImageVideoComposer implements INodeType {
 				const filterComplex = filterParts.join(';');
 
 				// Step 6: Execute FFmpeg command
-				await new Promise<void>((resolve, reject) => {
-					command
-						.complexFilter(filterComplex)
-						.outputOptions([
-							'-map', videoOutputLabel,
-							'-map', '[outa]',
-							'-c:v', 'libx264',
-							'-preset', 'medium',
-							'-crf', '23',
-							'-pix_fmt', 'yuv420p',
-							'-c:a', 'aac',
-							'-b:a', '192k',
-							'-ar', String(targetSampleRate),
-							'-ac', '2',
-							'-movflags', '+faststart',
-						])
-						.output(outputPath)
-						.on('start', (commandLine: string) => {
-							console.log('FFmpeg command:', commandLine);
-						})
-						.on('stderr', (stderrLine: string) => {
-							if (stderrLine.includes('frame=') || stderrLine.includes('error') || stderrLine.includes('Error')) {
-								console.log('FFmpeg:', stderrLine);
-							}
-						})
-						.on('end', () => {
-							console.log('Video composition completed!');
-							resolve();
-						})
-						.on('error', (err: Error) => {
-							console.error('FFmpeg error:', err.message);
-							reject(err);
-						})
-						.run();
+				const ffmpegArgs: string[] = [];
+
+				// Add input files
+				for (const inputFile of inputFiles) {
+					ffmpegArgs.push('-i', inputFile);
+				}
+
+				// Add filter complex
+				ffmpegArgs.push('-filter_complex', filterComplex);
+
+				// Add output options
+				ffmpegArgs.push(
+					'-map', videoOutputLabel,
+					'-map', '[outa]',
+					'-c:v', 'libx264',
+					'-preset', 'medium',
+					'-crf', '23',
+					'-pix_fmt', 'yuv420p',
+					'-c:a', 'aac',
+					'-b:a', '192k',
+					'-ar', String(targetSampleRate),
+					'-ac', '2',
+					'-movflags', '+faststart',
+				);
+
+				// Output file
+				ffmpegArgs.push(outputPath);
+
+				// Execute ffmpeg
+				await execFFmpeg({
+					args: ffmpegArgs,
+					onStderr: (line) => {
+						if (line.includes('frame=') || line.includes('error') || line.includes('Error')) {
+							console.log('FFmpeg:', line);
+						}
+					},
 				});
+
+				console.log('Video composition completed!');
 
 				// Step 7: Return result
 				returnData.push({

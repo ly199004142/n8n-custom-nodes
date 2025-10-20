@@ -5,7 +5,7 @@ import type {
 	INodeTypeDescription,
 } from 'n8n-workflow';
 import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
-import ffmpeg from 'fluent-ffmpeg';
+import { execFFmpeg, execFFprobe } from '../utils/ffmpeg';
 import * as fs from 'fs';
 
 // 视频流信息接口
@@ -42,41 +42,34 @@ function parseFps(fpsString: string | undefined): number {
 
 // 检测视频流信息
 async function getVideoStreamInfo(filePath: string): Promise<VideoStreamInfo> {
-	return new Promise((resolve, reject) => {
-		ffmpeg.ffprobe(filePath, (err, metadata) => {
-			if (err) {
-				reject(err);
-				return;
-			}
+	const metadata = await execFFprobe(filePath);
 
-			const videoStream = metadata.streams.find((s) => s.codec_type === 'video');
-			const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
-			const hasVideo = !!videoStream;
-			const hasAudio = !!audioStream;
+	const videoStream = metadata.streams.find((s) => s.codec_type === 'video');
+	const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
+	const hasVideo = !!videoStream;
+	const hasAudio = !!audioStream;
 
-			resolve({
-				filePath,
-				hasVideo,
-				hasAudio,
-				duration: Math.max(
-					typeof metadata.format.duration === 'number' ? metadata.format.duration : parseFloat(metadata.format.duration || '0'),
-					typeof videoStream?.duration === 'number' ? videoStream.duration : parseFloat(videoStream?.duration || '0')
-				),
-				videoStream: videoStream ? {
-					width: videoStream.width || 0,
-					height: videoStream.height || 0,
-					codec: videoStream.codec_name || '',
-					fps: parseFps(videoStream.r_frame_rate),
-					aspectRatio: (videoStream.width || 1) / (videoStream.height || 1),
-				} : null,
-				audioStream: audioStream ? {
-					codec: audioStream.codec_name || '',
-					sampleRate: typeof audioStream.sample_rate === 'number' ? audioStream.sample_rate : parseInt(audioStream.sample_rate || '0'),
-					channels: audioStream.channels || 0,
-				} : null,
-			});
-		});
-	});
+	return {
+		filePath,
+		hasVideo,
+		hasAudio,
+		duration: Math.max(
+			typeof metadata.format.duration === 'number' ? metadata.format.duration : parseFloat(metadata.format.duration as string || '0'),
+			typeof videoStream?.duration === 'number' ? videoStream.duration : parseFloat(videoStream?.duration as string || '0')
+		),
+		videoStream: videoStream ? {
+			width: videoStream.width || 0,
+			height: videoStream.height || 0,
+			codec: videoStream.codec_name || '',
+			fps: parseFps(videoStream.r_frame_rate),
+			aspectRatio: (videoStream.width || 1) / (videoStream.height || 1),
+		} : null,
+		audioStream: audioStream ? {
+			codec: audioStream.codec_name || '',
+			sampleRate: typeof audioStream.sample_rate === 'number' ? audioStream.sample_rate : parseInt(audioStream.sample_rate as string || '0'),
+			channels: audioStream.channels || 0,
+		} : null,
+	};
 }
 
 export class VideoMerge implements INodeType {
@@ -262,11 +255,11 @@ export class VideoMerge implements INodeType {
 				targetHeight = Math.round(targetHeight / 2) * 2;
 
 				// 构建 FFmpeg 命令
-				const command = ffmpeg();
+				const inputFiles: string[] = [];
 
 				// 添加所有视频文件作为输入
 				videoFiles.forEach((file) => {
-					command.input(file);
+					inputFiles.push(file);
 				});
 
 				let filterComplex: string;
@@ -322,37 +315,41 @@ export class VideoMerge implements INodeType {
 					filterComplex = filterParts.join(';');
 				}
 
-				// Concatenate video files using fluent-ffmpeg with filter_complex
-				await new Promise<void>((resolve, reject) => {
-					command
-						.complexFilter(filterComplex)
-						.outputOptions(['-map', '[outv]', '-map', '[outa]'])
-						.videoCodec('libx264')
-						.audioCodec('aac')
-						.outputOptions([
-							'-preset', 'medium',
-							'-crf', '23',
-							'-pix_fmt', 'yuv420p',        // 确保像素格式兼容性
-							'-movflags', '+faststart',     // 优化网络播放
-							'-b:a', '192k',                // AAC 音频码率
-							'-profile:v', 'high',          // H.264 profile
-							'-level', '4.0'                // H.264 level
-						])
-						.output(outputPath)
-						.on('start', (commandLine: string) => {
-							console.log('FFmpeg command:', commandLine);
-						})
-						.on('stderr', (stderrLine: string) => {
-							console.log('FFmpeg stderr:', stderrLine);
-						})
-						.on('end', () => {
-							resolve();
-						})
-						.on('error', (err: Error) => {
-							console.error('FFmpeg error:', err.message);
-							reject(err);
-						})
-						.run();
+				// Concatenate video files using ffmpeg with filter_complex
+				const ffmpegArgs: string[] = [];
+
+				// Add input files
+				for (const inputFile of inputFiles) {
+					ffmpegArgs.push('-i', inputFile);
+				}
+
+				// Add filter complex
+				ffmpegArgs.push('-filter_complex', filterComplex);
+
+				// Add output options
+				ffmpegArgs.push(
+					'-map', '[outv]',
+					'-map', '[outa]',
+					'-c:v', 'libx264',
+					'-c:a', 'aac',
+					'-preset', 'medium',
+					'-crf', '23',
+					'-pix_fmt', 'yuv420p',        // 确保像素格式兼容性
+					'-movflags', '+faststart',     // 优化网络播放
+					'-b:a', '192k',                // AAC 音频码率
+					'-profile:v', 'high',          // H.264 profile
+					'-level', '4.0',               // H.264 level
+				);
+
+				// Output file
+				ffmpegArgs.push(outputPath);
+
+				// Execute ffmpeg
+				await execFFmpeg({
+					args: ffmpegArgs,
+					onStderr: (line) => {
+						console.log('FFmpeg stderr:', line);
+					},
 				});
 
 				// Return success result
@@ -470,10 +467,10 @@ export class VideoMerge implements INodeType {
 					targetWidth = Math.round(targetWidth / 2) * 2;
 					targetHeight = Math.round(targetHeight / 2) * 2;
 
-					const command = ffmpeg();
+					const inputFiles2: string[] = [];
 
 					videoFiles.forEach((file) => {
-						command.input(file);
+						inputFiles2.push(file);
 					});
 
 					let filterComplex: string;
@@ -518,37 +515,41 @@ export class VideoMerge implements INodeType {
 						filterComplex = filterParts.join(';');
 					}
 
-					// Concatenate video files using fluent-ffmpeg with filter_complex
-					await new Promise<void>((resolve, reject) => {
-						command
-							.complexFilter(filterComplex)
-							.outputOptions(['-map', '[outv]', '-map', '[outa]'])
-							.videoCodec('libx264')
-							.audioCodec('aac')
-							.outputOptions([
-								'-preset', 'medium',
-								'-crf', '23',
-								'-pix_fmt', 'yuv420p',
-								'-movflags', '+faststart',
-								'-b:a', '192k',
-								'-profile:v', 'high',
-								'-level', '4.0'
-							])
-							.output(outputPath)
-							.on('start', (commandLine: string) => {
-								console.log('FFmpeg command:', commandLine);
-							})
-							.on('stderr', (stderrLine: string) => {
-								console.log('FFmpeg stderr:', stderrLine);
-							})
-							.on('end', () => {
-								resolve();
-							})
-							.on('error', (err: Error) => {
-								console.error('FFmpeg error:', err.message);
-								reject(err);
-							})
-							.run();
+					// Concatenate video files using ffmpeg with filter_complex
+					const ffmpegArgs2: string[] = [];
+
+					// Add input files
+					for (const inputFile of inputFiles2) {
+						ffmpegArgs2.push('-i', inputFile);
+					}
+
+					// Add filter complex
+					ffmpegArgs2.push('-filter_complex', filterComplex);
+
+					// Add output options
+					ffmpegArgs2.push(
+						'-map', '[outv]',
+						'-map', '[outa]',
+						'-c:v', 'libx264',
+						'-c:a', 'aac',
+						'-preset', 'medium',
+						'-crf', '23',
+						'-pix_fmt', 'yuv420p',
+						'-movflags', '+faststart',
+						'-b:a', '192k',
+						'-profile:v', 'high',
+						'-level', '4.0',
+					);
+
+					// Output file
+					ffmpegArgs2.push(outputPath);
+
+					// Execute ffmpeg
+					await execFFmpeg({
+						args: ffmpegArgs2,
+						onStderr: (line) => {
+							console.log('FFmpeg stderr:', line);
+						},
 					});
 
 					// Return success result

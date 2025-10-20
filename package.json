@@ -34,11 +34,11 @@
     "nodes": [
       "dist/nodes/AudioMerge/AudioMerge.node.js",
       "dist/nodes/VideoMerge/VideoMerge.node.js",
-      "dist/nodes/VideoComposer/VideoComposer.node.js"
+      "dist/nodes/VideoComposer/VideoComposer.node.js",
+      "dist/nodes/ImageVideoComposer/ImageVideoComposer.node.js"
     ]
   },
   "devDependencies": {
-    "@types/fluent-ffmpeg": "^2.1.27",
     "@typescript-eslint/parser": "~8.32.0",
     "eslint": "^8.57.0",
     "eslint-plugin-n8n-nodes-base": "^1.16.3",
@@ -50,6 +50,5 @@
     "n8n-workflow": "*"
   },
   "dependencies": {
-    "fluent-ffmpeg": "^2.1.3"
   }
 }
