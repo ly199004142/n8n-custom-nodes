@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-media-composition",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Comprehensive audio and video composition toolkit for n8n - merge audio/video files, overlay multiple audio tracks, and burn subtitles",
   "keywords": [
     "n8n-community-node-package"
@@ -49,6 +49,5 @@
   "peerDependencies": {
     "n8n-workflow": "*"
   },
-  "dependencies": {
-  }
+  "dependencies": {}
 }
