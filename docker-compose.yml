@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  n8n:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: n8n-with-ffmpeg
+    container_name: n8n-ffmpeg
+    restart: unless-stopped
+    ports:
+      - "5679:5678"
+    environment:
+      - GENERIC_TIMEZONE=Asia/Shanghai
+      - TZ=Asia/Shanghai
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - N8N_RUNNERS_ENABLED=true
+      # 允许安装社区节点
+      - N8N_COMMUNITY_PACKAGES_ENABLED=true
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - /Users/Downloads:/data
+    command: start --tunnel
+    # 以 root 用户运行以解决权限问题(仅用于开发环境)
+    user: root
+
+volumes:
+  n8n_data:
