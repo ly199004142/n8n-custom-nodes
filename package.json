@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-media-composition",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "description": "Comprehensive audio and video composition toolkit for n8n - merge audio/video files, overlay multiple audio tracks, and burn subtitles. Self-hosted only (requires FFmpeg).",
   "keywords": [
     "n8n-community-node-package"
