@@ -12,6 +12,8 @@
     "email": "ly_4_14@163.com"
   },
   "repository": {
+    "type": "git",
+    "url": "https://github.com/ly199004142/n8n-custom-nodes.git"
   },
   "engines": {
     "node": ">=20.15"
