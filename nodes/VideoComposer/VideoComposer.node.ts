@@ -219,6 +219,18 @@ export class VideoComposer implements INodeType {
 				],
 			},
 			{
+				displayName: 'Audio Volume (dB)',
+				name: 'audioVolume',
+				type: 'number',
+				default: 0,
+				typeOptions: {
+					minValue: -20,
+					maxValue: 20,
+					numberPrecision: 1,
+				},
+				description: 'Adjust volume for all overlay audio files in dB. 0 = no change, positive values increase volume, negative values decrease volume.',
+			},
+			{
 				displayName: 'Subtitle File Path',
 				name: 'subtitlePath',
 				type: 'string',
@@ -278,6 +290,7 @@ export class VideoComposer implements INodeType {
 					audioFiles = audioFilesParam.audioFile || [];
 				}
 
+				const audioVolume = this.getNodeParameter('audioVolume', itemIndex, 0) as number;
 				const subtitlePath = this.getNodeParameter('subtitlePath', itemIndex, '') as string;
 				const muteOriginalAudio = this.getNodeParameter('muteOriginalAudio', itemIndex, false) as boolean;
 				const outputPath = this.getNodeParameter('outputPath', itemIndex, '') as string;
@@ -412,20 +425,25 @@ export class VideoComposer implements INodeType {
 						audioFilter += `aresample=${targetSampleRate},aformat=sample_rates=${targetSampleRate}:channel_layouts=stereo,`;
 					}
 
-					// Step 2: Trim audio beyond video length
+					// Step 2: Apply volume adjustment (if not 0)
+					if (audioVolume !== 0) {
+						audioFilter += `volume=${audioVolume}dB,`;
+					}
+
+					// Step 3: Trim audio beyond video length
 					audioFilter += `atrim=0:${effectiveDuration},`;
 
-					// Step 3: Set PTS (ensure correct timestamps)
+					// Step 4: Set PTS (ensure correct timestamps)
 					audioFilter += `asetpts=PTS-STARTPTS,`;
 
-					// Step 4: Add delay (if startTime > 0)
+					// Step 5: Add delay (if startTime > 0)
 					if (startTime > 0) {
 						// adelay unit is milliseconds, need to set for each channel separately
 						const delayMs = Math.round(startTime * 1000);
 						audioFilter += `adelay=${delayMs}|${delayMs}:all=1,`;
 					}
 
-					// Step 5: Pad silence to video duration
+					// Step 6: Pad silence to video duration
 					const padDuration = videoDuration - effectiveDuration - startTime;
 					if (padDuration > 0) {
 						audioFilter += `apad=pad_dur=${padDuration.toFixed(3)}`;
@@ -512,6 +530,7 @@ export class VideoComposer implements INodeType {
 						outputPath,
 						videoPath,
 						audioFilesCount: audioFiles.length,
+						audioVolume,
 						hasSubtitle: !!(subtitlePath && subtitlePath.trim().length > 0),
 						muteOriginalAudio,
 						videoDuration: videoInfo.duration,
